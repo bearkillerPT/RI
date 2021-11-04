@@ -41,7 +41,8 @@ class Parser:
 
 if __name__=='__main__':
     if len(sys.argv) == 1:
-        a = Parser()
+        usage = 'Usage:\n\t python3 Parser.py filename'
+        print(usage)
     elif len(sys.argv) == 2:
         a = Parser(dataFileName=sys.argv[1])
     
