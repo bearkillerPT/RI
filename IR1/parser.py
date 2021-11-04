@@ -26,7 +26,7 @@ class Parser:
             if data[doc_id_i] not in self.documents.keys():
                 self.documents.setdefault(data[doc_id_i], [review])
             else:
-                self.documents[data[doc_id_i]].append(review)
+                self.documents[doc_id_i].append(review)
 
     def __init__(self, dataFileName=None):
         if not dataFileName:
@@ -45,4 +45,5 @@ if __name__=='__main__':
         print(usage)
     elif len(sys.argv) == 2:
         a = Parser(dataFileName=sys.argv[1])
+        print(a.documents)
     
