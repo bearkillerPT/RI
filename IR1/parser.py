@@ -4,11 +4,11 @@ import sys
 class Parser:
 
     def parseDataFile(self):
+        self.documents = {}
         self.headerData = []
         header = self.dataFile.readline().split('\t')
         for header_id in header:
             self.headerData.append(header_id.replace('\n', ''))
-        self.documents = {}
         while data := self.dataFile.readline().split('\t'):
             if not data or data==['']:
                 break

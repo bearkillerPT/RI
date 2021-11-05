@@ -6,9 +6,9 @@ from Parser import Parser
 class Tokenizer:
     def __init__(self, filename, min_length_filter, stop_word_list, porter_stemmer):
         self.parsedDoc = Parser(filename)
-        if len(self.parsedDoc.documents.keys()) == 0:
-            return
-        
+        if not self.parsedDoc.dataFile or len(self.parsedDoc.documents.keys()) == 0:
+            self = None
+            return None
         self.min_length_filter = min_length_filter
         self.stop_word_list = stop_word_list
         self.porter_stemmer = porter_stemmer
