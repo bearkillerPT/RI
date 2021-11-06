@@ -13,7 +13,6 @@ class Tokenizer:
         self.stop_word_list = stop_word_list
         self.porter_stemmer = porter_stemmer
         self.tokenize()
-        print(self.tokens)
     
     def tokenize(self):
         self.tokens = {}
@@ -31,7 +30,8 @@ class Tokenizer:
                     if to_insert in self.stop_word_list or len(token) < self.min_length_filter: 
                         continue
                     if to_insert in self.tokens.keys():
-                        self.tokens[to_insert].append(int(doc))
+                        if(not self.tokens[to_insert].__contains__(int(doc))):
+                            self.tokens[to_insert].append(int(doc))
                     else:
                         self.tokens.setdefault(to_insert, [int(doc)])
         for token in self.tokens:
