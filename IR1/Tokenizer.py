@@ -1,8 +1,9 @@
+#Gil Teixeira - 88194
 import sys
 import Parser
 from nltk.stem import PorterStemmer
-
 from Parser import Parser
+
 class Tokenizer:
     def __init__(self, filename, min_length_filter, stop_word_list, porter_stemmer):
         self.parsedDoc = Parser(filename)
@@ -12,32 +13,26 @@ class Tokenizer:
         self.min_length_filter = min_length_filter
         self.stop_word_list = stop_word_list
         self.porter_stemmer = porter_stemmer
-        self.tokenize()
-    
-    def tokenize(self):
-        self.tokens = {}
-        for doc in self.parsedDoc.documents.keys():
-            for review in self.parsedDoc.documents[doc]:
-                text = review['product_title'] + ' '
-                text += review['review_headline'] + ' '
-                text += review['review_body']
-                tokens = text.split(' ')
-                for token in tokens:
-                    to_insert = token
-                    if self.porter_stemmer:
-                        ps = PorterStemmer()
-                        to_insert = ps.stem(token)
-                    if to_insert in self.stop_word_list or len(token) < self.min_length_filter: 
-                        continue
-                    if to_insert in self.tokens.keys():
-                        if(not self.tokens[to_insert].__contains__(int(doc))):
-                            self.tokens[to_insert].append(int(doc))
-                    else:
-                        self.tokens.setdefault(to_insert, [int(doc)])
-        for token in self.tokens:
-            self.tokens[token].sort()
+        self.indexable_tokens = []
             
-                
+    def token_yielder(self):
+            ps = PorterStemmer()
+
+            for doc in self.parsedDoc.documents.keys():
+                for review in self.parsedDoc.documents[doc]:
+                    text = review['product_title'] + ' '
+                    text += review['review_headline'] + ' '
+                    text += review['review_body']
+                    tokens = text.split(' ')
+                    for token in tokens:
+                        to_insert = token
+                        if self.porter_stemmer:
+                            to_insert = ps.stem(token)
+                        if to_insert in self.stop_word_list or len(to_insert) < self.min_length_filter: 
+                            continue
+                        if to_insert not in self.indexable_tokens:
+                            self.indexable_tokens.append(to_insert)      
+                        yield (to_insert, int(doc))     
         
 
 if __name__=='__main__':

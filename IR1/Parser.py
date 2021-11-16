@@ -1,8 +1,18 @@
+#Gil Teixeira - 88194
 import sys
 
-
 class Parser:
-
+    def __init__(self, dataFileName=None):
+        if not dataFileName:
+            dataFileName = 'amazon_reviews_us_Camera_v1_00.tsv'
+        try:
+            self.dataFile  = open(dataFileName, encoding="utf8")
+        except Exception as e:
+            self.dataFile = None
+            print(e)
+        if self.dataFile:
+            self.parseDataFile()
+            
     def parseDataFile(self):
         self.documents = {}
         self.headerData = []
@@ -24,20 +34,11 @@ class Parser:
                     'review_body': data[review_body_i]
                 }
             if data[doc_id_i] not in self.documents.keys():
-                self.documents.setdefault(data[doc_id_i], [review])
+                self.documents[data[doc_id_i]] = [review]
             else:
                 self.documents[data[doc_id_i]].append(review)
 
-    def __init__(self, dataFileName=None):
-        if not dataFileName:
-            dataFileName = 'amazon_reviews_us_Camera_v1_00.tsv'
-        try:
-            self.dataFile  = open(dataFileName, encoding="utf8")
-        except Exception as e:
-            self.dataFile = None
-            print(e)
-        if self.dataFile:
-            self.parseDataFile()
+
 
 if __name__=='__main__':
     if len(sys.argv) == 1:
