@@ -1,5 +1,6 @@
 #Gil Teixeira - 88194
 import sys
+from typing import Set
 import Parser
 from nltk.stem import PorterStemmer
 from Parser import Parser
@@ -11,13 +12,12 @@ class Tokenizer:
             self = None
             return None
         self.min_length_filter = min_length_filter
-        self.stop_word_list = stop_word_list
+        self.stop_word_list = set(stop_word_list)
         self.porter_stemmer = porter_stemmer
-        self.indexable_tokens = []
-            
+        self.indexable_tokens = set()            
+        
     def token_yielder(self):
             ps = PorterStemmer()
-
             for doc in self.parsedDoc.documents.keys():
                 for review in self.parsedDoc.documents[doc]:
                     text = review['product_title'] + ' '
@@ -30,10 +30,9 @@ class Tokenizer:
                             to_insert = ps.stem(token)
                         if to_insert in self.stop_word_list or len(to_insert) < self.min_length_filter: 
                             continue
-                        if to_insert not in self.indexable_tokens:
-                            self.indexable_tokens.append(to_insert)      
-                        yield (to_insert, int(doc))     
-        
+                        self.indexable_tokens.add(to_insert)    
+                        yield (to_insert, int(doc)) 
+
 
 if __name__=='__main__':
     min_length_filter=0
