@@ -10,9 +10,33 @@ class Parser:
         except Exception as e:
             self.dataFile = None
             print(e)
-        if self.dataFile:
-            self.parseDataFile()
-            
+        #if self.dataFile:
+            #self.parseDataFile()
+
+    def parseAndYield(self):
+        self.documents = {}
+        self.headerData = []
+        header = self.dataFile.readline().split('\t')
+        for header_id in header:
+            self.headerData.append(header_id.replace('\n', ''))
+        while data := self.dataFile.readline().split('\t'):
+            if not data or data==['']:
+                break
+            if len(data) != len(self.headerData):
+                continue
+            doc_id_i = self.headerData.index('customer_id')
+            prod_title_i = self.headerData.index('product_title')
+            review_headline_i = self.headerData.index('review_headline')
+            review_body_i = self.headerData.index('review_body')
+            review = {
+                    'doc': data[doc_id_i],
+                    'product_title': data[prod_title_i],
+                    'review_headline': data[review_headline_i],
+                    'review_body': data[review_body_i]
+                }
+            yield review
+        
+
     def parseDataFile(self):
         self.documents = {}
         self.headerData = []
