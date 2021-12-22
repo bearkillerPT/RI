@@ -27,29 +27,27 @@ class Indexer:
         index = {}
         current_block = OrderedDict()
         total_blocks = 0
+        last_seen = None
         for (token, doc) in token_yielder: #get_size(current_block) >= block_memory was a condition but too slow
-            if current_block_postings >= block_postings:
-                try:
-                    fp = open(token[0].lower() + ".block", 'r')
-                    tmp_dict = json.load(fp)
-                    if token not in tmp_dict.keys():
-                        tmp_dict[token] = current_block[token]
-                    else:
-                        for doc in current_block[token]:
-                            if doc in tmp_dict[token].keys():
-                                tmp_dict[token][doc] += current_block[token][doc]
+            if doc != last_seen:
+                if current_block_postings >= block_postings:
+                    l2_normal = {}
+                    for token in current_block:
+                        for doc_seen in current_block[token]:
+                            if doc_seen not in l2_normal.keys():
+                                l2_normal[doc_seen] = math.pow(current_block[token][doc_seen],2)
                             else:
-                                tmp_dict[token][doc] = current_block[token][doc]
-                    fp.close()
-                except:
-                    tmp_dict = {token: current_block[token]}
-                finally:
-                    fp = open(block_token[0].lower() + ".block", 'w')
-                    json.dump(tmp_dict, fp)
+                                l2_normal[doc_seen] += math.pow(current_block[token][doc_seen],2)
+                    for token in current_block:
+                        for doc_seen in current_block[token]:
+                                current_block[token][doc_seen] = (1 + math.log10(current_block[token][doc_seen])) / math.sqrt(l2_normal[doc_seen])
+                    fp = open("" + str(total_blocks) + ".block", 'w', encoding='utf-8')
+                    self.writeBlock(current_block, fp)
                     fp.close()
                     total_blocks += 1
-                current_block_postings = 0
-                current_block = OrderedDict()
+                    current_block_postings = 0
+                    current_block = OrderedDict()
+                last_seen = doc
 
             if token in current_block.keys():
                 if doc in current_block[token].keys(): 
@@ -60,74 +58,156 @@ class Indexer:
             else:
                 index[token] = 1
                 current_block[token] = {doc: 1}
-                current_block_postings += 1
+            current_block_postings += 1
             
-            
-        if current_block_postings > 0:
-            for block_token in current_block:
-                try:
-                    fp = open(block_token[0].lower() + ".block", 'r')
-                    tmp_dict = json.load(fp)
-                    if block_token not in tmp_dict.keys():
-                        tmp_dict[block_token] = current_block[block_token]
+        self.index = index
+        
+        if current_block_postings >= 0:
+            l2_normal = {}
+            for token in current_block:
+                for doc_seen in current_block[token]:
+                    if doc_seen not in l2_normal.keys():
+                        l2_normal[doc_seen] = math.pow(current_block[token][doc_seen],2)
                     else:
-                        for doc in current_block[block_token]:
-                            if doc in tmp_dict[block_token].keys():
-                                tmp_dict[block_token][doc] += current_block[block_token][doc]
-                            else:
-                                tmp_dict[block_token][doc] = current_block[block_token][doc]
-                    fp.close()
-                except:
-                    tmp_dict = {block_token: current_block[block_token]}
-                finally:
-                    fp = open(block_token[0].lower() + ".block", 'w')
-                    json.dump(tmp_dict, fp)
-                    fp.close()
-                    total_blocks += 1
+                        l2_normal[doc_seen] += math.pow(current_block[token][doc_seen],2)
+            for token in current_block:
+                for doc_seen in current_block[token]:
+                        current_block[token][doc_seen] = (1 + math.log10(current_block[token][doc_seen])) / math.sqrt(l2_normal[doc_seen])
+            fp = open("" + str(total_blocks) + ".block", 'w', encoding='utf-8')
+            self.writeBlock(current_block, fp)
+            fp.close()
+            total_blocks += 1
+            current_block_postings = 0
+            current_block = OrderedDict()
         self.total_blocks = total_blocks
         #merge
-        self.mergeIndex()
+        print("Merging!")
+        self.mergeIndex(block_postings)
 
-    def mergeIndex(self):
-        index = OrderedDict({})
-        for token in sorted(list(self.tokenizer.indexable_tokens)):
-            try:
-                fp = open(token[0].lower() + ".block", 'r')
+    def mergeIndex(self, block_postings):
+        block_yielders = []
+        for i in range(self.total_blocks):
+            fp = open("" + str(i) + ".block", 'r', encoding='utf-8')
+            block_yielders.append(self.loadBlock(fp))
+        
+        blocked_keys = set()
+        current_block = {}
+        current_postings = 0
+        current_keys = []       
+        done = False
+        for block_yielder in block_yielders:    
+            for block in block_yielder:
+                token = list(block.keys())[0]
+                blocked_keys.add(token)
+                current_keys.append(token)
+                if token not in current_block.keys():
+                    current_block[token] = {}
+                for doc in block[token]:
+                    current_block[token][doc] = block[token][doc]
+                break
+        if len(current_keys) == 0:
+            return
 
-                tmp_dict = json.load(fp)
-                if token not in index:
-                    index[token] = {}
-                for key in tmp_dict[token]: 
-                    index[token][key] = (1 + math.log10(tmp_dict[token][key])) 
-                fp.close()
-            except:
-                index[token] = OrderedDict({})
-        l2_normal = {}
-        ## Vector length normalization
-        for token in index.keys():        
-            for doc in index[token].keys():
-                if doc in index[token].keys():
-                    if token not in l2_normal.keys():
-                        print(token)
-                        l2_normal.setdefault(token, math.pow(index[token][doc], 2))
+        index_dir = self.filename[:-4] + "_index/"
+        try: 
+            os.mkdir(index_dir)    
+        except:
+            pass    
+        while not done:
+            #should be a prioritized key
+            if len(current_keys) == 0:
+                done = True
+            else: #find the min token in the document yielders and yield the next
+                min = None
+                selected_i = 0
+                for i, key in enumerate(current_keys):
+                    if min == None or key[0] < min[0]:
+                        min = key
+                        selected_i = i
+                current_keys.remove(min)
+                selected_block = {}
+                for block in block_yielders[selected_i]:
+                    selected_block = block
+                    break
+                if len(list(selected_block.keys())) != 0:
+                    token = list(selected_block.keys())[0]
+                    blocked_keys.add(token)
+                    current_keys.append(token)
+                    if token not in current_block.keys():
+                        current_block[token] = {}
+                        for doc in selected_block[token]:
+                            current_block[token][doc] = selected_block[token][doc]
+                            current_postings += 1
                     else:
-                        l2_normal[token] += math.pow(index[token][doc], 2)
-        print(l2_normal)
-        for token in index.keys():
-            l2_normal[token] = math.sqrt(l2_normal[token]) 
+                        for doc in selected_block[token]:
+                            if doc in current_block[token]: 
+                                current_block[token][doc] += selected_block[token][doc]
+                            else:
+                                current_block[token][doc] = selected_block[token][doc]
+                                current_postings += 1
+                
+            if current_postings >= block_postings or done:
+                last_key = sorted(blocked_keys)[0]
+                res = {}
+                for key in sorted(blocked_keys):
+                    if key[0] != last_key[0]:
+                        try:
+                            self.writeBlock(res, open(index_dir + last_key[0] + ".block",'w', encoding='utf-8'))
+                            blocked_keys.remove(last_key)
+                            last_key = key
+                            res = {}
+                        except Exception as e:
+                            print(e)
+                    if key not in res.keys():
+                        res[key] = {}
+                    for doc in current_block[key]:
+                        res[key][doc] = current_block[key][doc]
+                current_postings = 0
+                try:
+                    self.writeBlock(res, open(index_dir + last_key[0] + ".block",'w', encoding='utf-8'))
+                    blocked_keys.remove(last_key)
+                    last_key = key
+                    res = {}
+                except Exception as e:
+                    print(e)
+                        
 
-        for token in index:
-            if doc in index[token].keys():
-                index[token][doc] = index[token][doc] / l2_normal[token]
+                    
+                           
 
-        ##
-        self.index = index
-        print(index)
-        self.save_index(index, {})
+                    
+        
+        
 
-    def yield_json_line(self, file):
-        for jsonstr in splitfile(file, format="json"):
-            yield json.loads(jsonstr)
+    def writeBlock(self, block, fp):
+        res = ""
+        write_dict = False
+        for token in sorted(block.keys()):
+            if isinstance(block[token], dict):
+                res += token + ";"
+                for doc in block[token]:
+                    res += str(doc) + ":" + str(block[token][doc]) + ";"
+                res += "\n"
+            else:
+                write_dict = True
+        if write_dict:
+            for token in block.keys():
+                res += token + " : " + str(block[token]) + ";" 
+                res += '\n' 
+        fp.writelines(res)
+
+    def loadBlock(block, fp):
+        for line in fp:
+            res = {}
+            values = line.split(';')
+            token = values[0]
+            res[token] = {}
+            for i in range(1, len(values)-1):
+                [doc, weight] = values[i].split(':')
+                res[token][doc] = weight
+            yield res
+
+    
 
     def save_index(self, index, postings):
         index_file = open(self.filename + '_index', 'w')

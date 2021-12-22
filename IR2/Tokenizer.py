@@ -3,6 +3,7 @@ import sys
 from typing import Set
 import Parser
 from nltk.stem import PorterStemmer
+import nltk
 from Parser import Parser
 
 class Tokenizer:
@@ -22,19 +23,18 @@ class Tokenizer:
                 text = data['product_title'] + ' '
                 text += data['review_headline'] + ' '
                 text += data['review_body']
-                tokens = text.split(' ')
-                for token in tokens:
+                for token in nltk.word_tokenize(text):
                     to_insert = token
                     if self.porter_stemmer:
                         to_insert = self.ps.stem(token)
-                    if to_insert.startswith( ('\"','/','>','<','?','!','.','\\')):
-                        to_insert = token.strip(' \"/><?!.\\')
+                    if to_insert.startswith( ('\"','/','>','<','?','|','!','.',',',':',';','\\','$','#','&','\'','(',')','[',']','{','}','','','\x04','\x08','\x10','\x16')):
+                        to_insert = token.strip(' \"/><?!.,:;\\$#&\'|()[{]}\x04\x08\x10\x16')
+                    
                     if to_insert in self.stop_word_list or len(to_insert) < self.min_length_filter: 
                         continue
                     self.indexable_tokens.add(to_insert)   
                     self.docs.add(int(doc))
                     yield (to_insert, int(doc)) 
-
 if __name__=='__main__':
     min_length_filter=0
     stop_word_list = []

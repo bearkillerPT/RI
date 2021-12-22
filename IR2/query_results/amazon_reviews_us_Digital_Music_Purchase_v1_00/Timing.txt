@@ -1,0 +1,2 @@
+Index+Merge time: 3:22:46.846877 h:mm:ss
+Each search took about 0.05 seconds!

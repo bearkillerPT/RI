@@ -6,7 +6,7 @@ class Parser:
         if not dataFileName:
             dataFileName = 'amazon_reviews_us_Camera_v1_00.tsv'
         try:
-            self.dataFile  = open(dataFileName, encoding="utf8")
+            self.dataFile  = open(dataFileName, encoding="utf-8")
         except Exception as e:
             self.dataFile = None
             print(e)
