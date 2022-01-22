@@ -1,6 +1,9 @@
 #Gil Teixeira - 88194
+from ast import parse
 from collections import OrderedDict
 from datetime import datetime
+import re
+from click import parser
 from nltk.downloader import FinishCollectionMessage
 from Indexer import Indexer
 import sys
@@ -18,7 +21,7 @@ class Ranker:
         self.indexer = Indexer(filename, min_length_filter,stop_word_list,porter_stemmer) 
         self.ps = PorterStemmer()
 
-    def tfIdfRanker(self, query, boost=False):
+    def tfIdfRanker(self, query, boost=None):
         query_wt = {}
         for token in query.split(' '):
             to_insert = self.ps.stem(token)
@@ -80,8 +83,8 @@ class Ranker:
             for token in res[doc]:
                 total += res[doc][token]
             res_sum[doc] = total 
-            #if boost:
-            #    res_sum[doc] += self.boost(doc, res[doc], query_wt.keys(), documents)
+            if boost:
+                res_sum[doc] += self.boost(doc, res[doc], query_wt.keys(), documents)
         
         return dict(sorted(res_sum.items(), key=lambda item: item[1], reverse=True)[:100])
 
@@ -122,6 +125,25 @@ class Ranker:
                 return 0
 
 
+def parseRelevance(relevance_filename):
+    res = {}
+    current_querie = None
+    try:
+        fp = open(relevance_filename, 'r')
+        while line := fp.readline():
+            if line == "\n":
+                continue
+            elif line[0:2] == 'Q:':
+                current_querie = line[2:-1]
+                res[current_querie] = {}
+            else: 
+                [token, relevance] = line.split('\t')
+                res[current_querie][token] = relevance[:-1]
+
+
+    except Exception as e:
+        print(e.__traceback__())
+    return res
 
 if __name__=='__main__':
     test_file_names = ["amazon_reviews_us_Digital_Video_Games_v1_00.tsv","amazon_reviews_us_Digital_Music_Purchase_v1_00.tsv", "amazon_reviews_us_Music_v1_00.tsv", "amazon_reviews_us_Books_v1_00.tsv" ] 
@@ -129,12 +151,15 @@ if __name__=='__main__':
     stop_word_list = []
     porter_stemmer = False
     if len(sys.argv) == 1:
-        usage = 'Usage:\n\tpython3 Ranker.py queries.txt (--boost)?'
+        usage = 'Usage:\n\tpython3 Ranker.py queries.txt (--boost queries.relevance.txt)?'
         print(usage)
     else:
         boost = False
-        if len(sys.argv) == 3:
+        relevance = None
+        if len(sys.argv) == 4:
             boost = True
+            relevance_filename = sys.argv[3]
+            relevance = parseRelevance(relevance_filename)
         
         for test_file_name in test_file_names:
             time.sleep(1)
