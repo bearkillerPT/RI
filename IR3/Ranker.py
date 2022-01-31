@@ -2,14 +2,12 @@
 from ast import parse
 from collections import OrderedDict
 from datetime import datetime
-import re
 from click import parser
 from nltk.downloader import FinishCollectionMessage
 from Indexer import Indexer
 import sys
 from os import system
 import copy
-import json
 import time
 import math
 from nltk import PorterStemmer
